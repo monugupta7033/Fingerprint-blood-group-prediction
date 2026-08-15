@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+SOCOFing/
+blood-group-dataset/
+
+static/input_images/*
+static/gradcam/*
+
+*.log
+.DS_Store
