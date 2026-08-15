@@ -1,126 +1,389 @@
-# 🧬 Non-Invasive Blood Group Prediction Using Fingerprint Analysis
+# Fingerprint Blood Group Prediction
 
-This repository contains the source code, training notebook, and demo system for my **Final Year Project (FYP)**:  
-a **deep learning–based system** that predicts **blood groups from fingerprint images** using EfficientNet CNNs.  
-It includes **model training**, a trained model, and a **Flask-based demo UI**.
+<p align="center">
+  <img src="assets/banner.svg" alt="Fingerprint Blood Group Prediction">
+</p>
 
----
+<p align="center">
+  <strong>Experimental deep learning • multi-fingerprint consensus • explainable AI</strong>
+</p>
 
-## 🎥 Demo Video
-[![Watch the demo](https://img.youtube.com/vi/bCNX2WjBYcI/0.jpg)](https://youtu.be/bCNX2WjBYcI)
-
----
-
-## 📌 Project Overview
-- **Goal**: Predict human blood groups using fingerprint images in a non-invasive manner.  
-- **Dataset**: SOCOFing fingerprint dataset (synthetically labeled).  
-- **Model**: EfficientNetB0 trained on 6,000+ fingerprint images across 8 blood groups.  
-- **Accuracy**: Achieved **90.33% test accuracy**.  
-- **Demo System**: Flask backend + HTML/CSS/JS frontend with a cyberpunk dark theme.  
-
-⚠️ **Disclaimer**: This project is for **academic and research purposes only**. It is not medically validated and must not be used in real-world healthcare scenarios.
+<p align="center">
+  <a href="#-verified-results">97.47% Accuracy</a> •
+  <a href="#-grad-cam-explainability">Grad-CAM</a> •
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-limitations">Limitations</a>
+</p>
 
 ---
 
-## 🛠 Tech Stack
-- **Programming**: Python 3.10+, TensorFlow/Keras, scikit-learn, OpenCV  
-- **Frontend**: HTML, CSS, JavaScript  
-- **Backend**: Flask (API + templates)  
-- **Visualization**: Matplotlib, Seaborn  
-- **Deployment**: Local demo (Docker/Render compatible)  
+## What makes this project different?
+
+Most image-classification demos stop at:
+
+> **Image → Label**
+
+This project is designed as a complete inference pipeline:
+
+> **10 fingerprints → 8-class prediction → probabilities → consensus → explanation**
+
+The interface exposes both the **decision** and the **evidence the model provides for that decision**, while keeping the system clearly labelled as an academic research prototype.
 
 ---
 
-## 📂 Project Structure
+## ✦ At a glance
+
+| | |
+|:--|:--|
+| **Model** | EfficientNetB0 |
+| **Input** | 96 × 103 × 3 |
+| **Classes** | A+, A-, AB+, AB-, B+, B-, O+, O- |
+| **Evaluation set** | 6,000 labelled fingerprint images |
+| **Accuracy** | **97.47%** |
+| **Macro F1** | **97.54%** |
+| **Weighted F1** | **97.47%** |
+| **Explainability** | Grad-CAM |
+| **Web stack** | Flask + HTML/CSS/JavaScript |
+
+---
+
+## ◇ End-to-end pipeline
+
+```mermaid
+flowchart LR
+    A[10 Fingerprint Images] --> B[Preprocessing]
+    B --> C[EfficientNetB0]
+    C --> D[8-Class Prediction]
+    D --> E[Probability Distribution]
+    D --> F[Per-Fingerprint Results]
+    E --> G[Consensus + Agreement]
+    F --> G
+    D --> H[Grad-CAM]
+    G --> I[Final Estimate]
 ```
 
-Non-Invasive-Blood-Group-Prediction-Using-Fingerprint-Analysis/
-├── model/
-│   ├── final_best_efficientnetb0_model_final.keras  # trained model (already included)
-│   └── Model Training and Testing Code.ipynb                  # training & evaluation notebook
-│
-├── utils/                      # Helper scripts
-│   └── predict.py              # Inference helpers
-│
-├── templates/                  # Flask HTML templates
-├── static/                     # CSS, JS, sample input images
-│
-├── app.py                      # Flask backend for demo
-├── requirements.txt            # Dependencies
-├── README.md                   # Project description
-├── LICENSE                     # MIT License
-└── .gitignore                  # Ignore unnecessary files
+---
 
-````
+## 🧠 Model architecture
+
+```text
+Input: 96 × 103 × 3
+        │
+        ▼
+┌───────────────────────┐
+│      EfficientNetB0   │
+│  Transfer-learned CNN │
+└──────────┬────────────┘
+           │
+           ▼
+┌───────────────────────┐
+│ Global Average Pooling│
+└──────────┬────────────┘
+           │
+           ▼
+┌───────────────────────┐
+│ Batch Normalization   │
+└──────────┬────────────┘
+           │
+           ▼
+┌───────────────────────┐
+│ Dropout               │
+└──────────┬────────────┘
+           │
+           ▼
+┌───────────────────────┐
+│ Dense(8)              │
+└──────────┬────────────┘
+           │
+           ▼
+      8 Blood Groups
+```
+
+### Supported classes
+
+`A+` · `A-` · `AB+` · `AB-` · `B+` · `B-` · `O+` · `O-`
 
 ---
 
-## 🚀 Quickstart
+## 📈 Verified results
 
-### 1. Clone the repo
+The existing trained model was evaluated on **6,000 labelled fingerprint images**.
+
+### Headline metrics
+
+| Metric | Result |
+|:--|--:|
+| **Accuracy** | **97.47%** |
+| **Macro F1** | **97.54%** |
+| **Weighted F1** | **97.47%** |
+| Images evaluated | 6,000 |
+| Classes | 8 |
+
+### Class-wise performance
+
+| Class | Precision | Recall | F1 |
+|:--:|--:|--:|--:|
+| A+ | 98.76% | 98.58% | 98.67% |
+| A- | 95.93% | 98.02% | 96.96% |
+| AB+ | 98.99% | 96.75% | 97.86% |
+| AB- | 99.31% | 94.22% | 96.70% |
+| B+ | 98.46% | 97.85% | 98.15% |
+| B- | 96.85% | 99.73% | 98.27% |
+| O+ | 98.21% | 96.71% | 97.46% |
+| O- | 94.33% | 98.17% | 96.21% |
+
+> **Interpretation:** these are dataset-level experimental results. They should not be presented as clinical accuracy.
+
+---
+
+## 🔬 Grad-CAM explainability
+
+A prediction screen should not be a black box.
+
+For an individual fingerprint, the application can produce:
+
+```text
+Original Fingerprint
+        │
+        ▼
+EfficientNetB0
+        │
+        ▼
+Predicted Class
+        │
+        ▼
+Grad-CAM
+        │
+        ▼
+Attention / activation heatmap
+```
+
+The heatmap helps visualize the image regions that contributed most to the model's prediction.
+
+**Important:** Grad-CAM is an interpretability tool. It is not evidence of biological causation.
+
+---
+
+## 🎯 Multi-fingerprint consensus
+
+Rather than relying on a single fingerprint:
+
+```text
+Fingerprint 01 → A+
+Fingerprint 02 → A+
+Fingerprint 03 → A-
+Fingerprint 04 → A+
+...
+Fingerprint 10 → A+
+
+             ↓
+
+      Vote distribution
+             +
+      Mean probabilities
+             +
+      Agreement score
+             ↓
+
+       Final estimate
+```
+
+The UI exposes:
+
+- fingerprint agreement
+- winning votes
+- vote margin
+- 8-class probability distribution
+- per-fingerprint confidence
+
+This makes the final output easier to inspect and defend during a project demonstration.
+
+---
+
+## 🖥️ Application experience
+
+The application contains four major views:
+
+**1. Analysis launcher**  
+Select exactly 10 BMP fingerprint samples.
+
+**2. Model performance**  
+See the verified evaluation metrics and architecture.
+
+**3. Consensus result**  
+Review the final estimate, agreement, voting and probability distribution.
+
+**4. Explainable AI**  
+Open Grad-CAM for an individual fingerprint.
+
+---
+
+## 🧰 Tech stack
+
+| Layer | Technology |
+|:--|:--|
+| Language | Python |
+| Deep learning | TensorFlow / Keras |
+| CNN backbone | EfficientNetB0 |
+| Web framework | Flask |
+| Image processing | Pillow + NumPy |
+| Explainability | Grad-CAM |
+| Evaluation | Scikit-learn |
+| Frontend | HTML + CSS + JavaScript |
+
+---
+
+## 📁 Repository structure
+
+```text
+Fingerprint-blood-group-prediction/
+│
+├── app.py
+├── gradcam.py
+├── requirements.txt
+├── README.md
+├── LICENSE
+├── .gitignore
+│
+├── assets/
+│   └── banner.svg
+│
+├── model/
+│   ├── final_best_efficientnetb0_model_final.keras
+│   └── Model Training and Testing Code.ipynb
+│
+├── utils/
+│   └── predict.py
+│
+├── templates/
+│   └── index.html
+│
+└── static/
+    ├── input_images/
+    └── gradcam/
+```
+
+Training datasets and the local virtual environment are intentionally excluded from version control.
+
+---
+
+## ⚡ Quick Start
+
+### 1. Clone
+
 ```bash
-git clone https://github.com/wObbLee00/Non-Invasive-Blood-Group-Prediction-Using-Fingerprint-Analysis.git
-cd Non-Invasive-Blood-Group-Prediction-Using-Fingerprint-Analysis
-````
+git clone https://github.com/monugupta7033/Fingerprint-blood-group-prediction.git
+cd Fingerprint-blood-group-prediction
+```
 
-### 2. Create virtual environment & install requirements
+### 2. Create environment
 
 ```bash
 python -m venv venv
-# activate
-venv\Scripts\activate  # Windows
-source venv/bin/activate  # Linux/Mac
+```
+
+### 3. Activate on Windows
+
+```powershell
+venv\Scripts\Activate.ps1
+```
+
+### 4. Install dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 3. Model file
-The trained model is **already included** in this repository at: `model/final_best_efficientnetb0_model_final.keras`
-### 4. Run the demo
+### 5. Run the application
 
 ```bash
 python app.py
 ```
 
-* Open browser: `http://127.0.0.1:5000`
+Open:
+
+```text
+http://127.0.0.1:5000
+```
 
 ---
 
-## 📊 Training
+## 🧪 Demo flow
 
-* Open `Model Training and Testing Code.ipynb` in Jupyter.
-* Requires the SOCOFing dataset (not included due to size).
-* Trains EfficientNetB0 with preprocessing, normalization, and dropout.
-* Evaluated with accuracy, precision/recall, confusion matrix.
-
----
-
-## 🎯 Features
-
-* End-to-end ML pipeline: dataset → training → evaluation → deployment.
-* Flask demo app with cyberpunk dark-themed UI.
-* Easy to run locally (requirements + model file).
-* Extendable to MLOps tools (Docker, MLflow, GitHub Actions).
+1. Launch the Flask application.
+2. Select **10 BMP fingerprint images**.
+3. Run the analysis.
+4. Inspect per-fingerprint predictions.
+5. Compare the 8-class probability distribution.
+6. Review consensus and agreement.
+7. Open **Explain Prediction** for Grad-CAM.
 
 ---
 
-## 📈 Results
+## 📌 Project limitations
 
-* **Test Accuracy**: 90.33%
-* **Model**: EfficientNetB0 (transfer learning)
-* **Classes**: 8 blood groups → `['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']`
-
----
-
-## 📝 License
-
-This project is licensed under the MIT License – see the [LICENSE](LICENSE) file for details.
+- This is an **academic research prototype**.
+- The reported metrics are based on the labelled dataset used for evaluation.
+- Dataset-level performance does not establish medical or clinical validity.
+- Fingerprint-to-blood-group relationships require independent scientific validation.
+- The system should not be used for transfusion, diagnosis, treatment, emergency decisions, or healthcare decisions.
+- Grad-CAM shows model attention, not biological causation.
 
 ---
 
-## 🙌 Acknowledgments
+## 🚀 Future scope
 
-* **Dataset**: [SOCOFing – Sokoto Coventry Fingerprint Dataset](https://www.kaggle.com/datasets/ruizgara/socofing)
-* **Supervisor**: Dr. Umair Muneer Butt (UMT Sialkot)
-* **Team**: Habiba Fiaz, Saad Jamshaid, Zahra Akhtar, Wabil Nadeem Butt
+- Browser-native image uploads for cloud deployment
+- Subject-independent train / validation / test splits
+- Larger independently collected datasets
+- Cross-dataset validation
+- Confidence calibration and uncertainty estimation
+- Ensemble models
+- Additional explainability methods
+- Mobile inference
+- Formal clinical validation under appropriate research protocols
 
 ---
+
+## 🎓 Academic workflow
+
+```text
+Dataset
+   ↓
+Preprocessing
+   ↓
+Transfer Learning
+   ↓
+Model Evaluation
+   ↓
+Inference
+   ↓
+10-Sample Aggregation
+   ↓
+Explainable AI
+   ↓
+Interactive Web Application
+```
+
+This makes the project an end-to-end applied machine-learning prototype combining **computer vision, deep learning, evaluation, decision aggregation, explainability, and web development**.
+
+---
+
+## ⚠️ Disclaimer
+
+> **This software is for academic and research purposes only.**
+>
+> The application produces an experimental prediction from fingerprint images and is **not a medically validated blood-group test**. Do not use its output for transfusion, diagnosis, treatment, emergency decisions, or other healthcare purposes.
+
+---
+
+## Repository
+
+**GitHub:**  
+https://github.com/monugupta7033/Fingerprint-blood-group-prediction
+
+---
+
+<p align="center">
+  <sub>Built as an academic deep-learning & computer-vision research project.</sub>
+</p>
