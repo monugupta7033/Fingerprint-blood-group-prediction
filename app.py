@@ -1,10 +1,6 @@
-from flask import Flask, render_template, jsonify, url_for
-
-import tkinter as tk
-from tkinter import filedialog
+from flask import Flask, render_template, jsonify, url_for, request
 
 import os
-import shutil
 import time
 
 from utils.predict import (
@@ -46,7 +42,7 @@ def index():
 
 
 # ============================================================
-# SELECT EXACTLY 10 FINGERPRINT IMAGES
+# UPLOAD EXACTLY 10 FINGERPRINT IMAGES
 # ============================================================
 
 @app.route("/select-images", methods=["POST"])
@@ -54,42 +50,16 @@ def select_images():
 
     try:
 
-        try:
-            import ctypes
-            ctypes.windll.shcore.SetProcessDpiAwareness(1)
-        except Exception:
-            pass
+        # Receive files from browser
+        files = request.files.getlist("files")
 
-        root = tk.Tk()
-        root.withdraw()
-
-        try:
-            root.call(
-                "wm",
-                "attributes",
-                ".",
-                "-topmost",
-                "1"
-            )
-        except Exception:
-            pass
-
-        file_paths = filedialog.askopenfilenames(
-            title="Select exactly 10 fingerprint images",
-            filetypes=[
-                ("BMP fingerprint files", "*.BMP"),
-                ("BMP fingerprint files", "*.bmp")
-            ]
-        )
-
-        root.destroy()
-
-        if len(file_paths) != 10:
+        # Exactly 10 files required
+        if len(files) != 10:
 
             return jsonify({
                 "error": (
                     "Please select exactly 10 BMP fingerprint images. "
-                    f"You selected {len(file_paths)}."
+                    f"You selected {len(files)}."
                 )
             })
 
@@ -100,7 +70,10 @@ def select_images():
             exist_ok=True
         )
 
-        # Clear previous input images.
+        # ----------------------------------------------------
+        # Clear previous input images
+        # ----------------------------------------------------
+
         for filename in os.listdir(input_dir):
 
             filepath = os.path.join(
@@ -111,10 +84,26 @@ def select_images():
             if os.path.isfile(filepath):
                 os.remove(filepath)
 
-        # Copy selected images.
-        for path in file_paths:
+        # ----------------------------------------------------
+        # Save uploaded images
+        # ----------------------------------------------------
 
-            if not path.lower().endswith(".bmp"):
+        for file in files:
+
+            filename = os.path.basename(
+                file.filename
+            )
+
+            # Check filename
+            if not filename:
+
+                return jsonify({
+                    "error":
+                        "Invalid fingerprint filename."
+                })
+
+            # Only BMP allowed
+            if not filename.lower().endswith(".bmp"):
 
                 return jsonify({
                     "error":
@@ -123,29 +112,26 @@ def select_images():
 
             destination = os.path.join(
                 input_dir,
-                os.path.basename(path)
+                filename
             )
 
-            shutil.copy2(
-                path,
-                destination
-            )
+            file.save(destination)
 
         return jsonify({
             "success": True,
-            "count": len(file_paths)
+            "count": len(files)
         })
 
     except Exception as e:
 
         print(
-            "Image Selection Error:",
+            "Image Upload Error:",
             str(e)
         )
 
         return jsonify({
             "error":
-                "Image selection failed. Please try again."
+                f"Image upload failed: {str(e)}"
         })
 
 
@@ -304,11 +290,17 @@ def gradcam(filename):
         input_dir = app.config["UPLOAD_FOLDER"]
         output_dir = app.config["GRADCAM_FOLDER"]
 
+        # Make sure Grad-CAM output folder exists
+        os.makedirs(
+            output_dir,
+            exist_ok=True
+        )
+
         safe_filename = os.path.basename(
             filename
         )
 
-        # Only allow an image that was actually selected
+        # Only allow an image that was actually uploaded
         # into the current input directory.
         image_path = os.path.abspath(
             os.path.join(
@@ -321,23 +313,32 @@ def gradcam(filename):
             input_dir
         )
 
+        # Prevent path traversal
         if (
             os.path.commonpath(
                 [image_path, allowed_dir]
             ) != allowed_dir
         ):
+
             return jsonify({
-                "error": "Invalid fingerprint filename."
+                "error":
+                    "Invalid fingerprint filename."
             }), 400
 
+        # Check image exists
         if not os.path.isfile(image_path):
+
             return jsonify({
-                "error": "Fingerprint image not found."
+                "error":
+                    "Fingerprint image not found."
             }), 404
 
+        # Only BMP allowed
         if not safe_filename.lower().endswith(".bmp"):
+
             return jsonify({
-                "error": "Only BMP fingerprint images are supported."
+                "error":
+                    "Only BMP fingerprint images are supported."
             }), 400
 
         stem = os.path.splitext(
@@ -354,12 +355,13 @@ def gradcam(filename):
             output_filename
         )
 
+        # Generate Grad-CAM
         result = generate_gradcam(
             image_path,
             output_path
         )
 
-        # Cache-busting makes repeated explanations refresh correctly.
+        # Cache-busting
         version = int(
             os.path.getmtime(output_path)
         )
